@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Auto Form Fill from Excel</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+      }
+      h2 {
+        color: #333;
+      }
+      #fileUpload {
+        margin-bottom: 20px;
+      }
+      #fileName {
+        display: inline-block;
+        margin-left: 10px;
+        font-weight: bold;
+        color: #007bff;
+      }
+      #uploadStatus {
+        margin-bottom: 20px;
+        color: green;
+      }
+      form {
+        margin-bottom: 20px;
+      }
+      label {
+        display: inline-block;
+        width: 80px;
+      }
+      input[type="text"] {
+        width: 200px;
+        padding: 5px;
+        margin-bottom: 10px;
+      }
+      input[type="submit"] {
+        padding: 5px 15px;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        cursor: pointer;
+      }
+      input[type="submit"]:hover {
+        background-color: #0056b3;
+      }
+      #submittedData {
+        margin-top: 20px;
+        border-collapse: collapse;
+        width: 100%;
+      }
+      #submittedData th,
+      #submittedData td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+      }
+      #submittedData th {
+        background-color: #f2f2f2;
+        color: #333;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Upload Excel File to Auto-Fill Form</h2>
+    <input type="file" id="fileUpload" accept=".xlsx, .xls" />
+    <span id="fileName"></span>
+    <p id="uploadStatus"></p>
+
+    <form id="autoForm">
+      <label for="name">Name:</label>
+      <input type="text" id="name" name="name" required /><br />
+
+      <label for="id">ID:</label>
+      <input type="text" id="id" name="id" required /><br />
+
+      <label for="rollNo">Roll No:</label>
+      <input type="text" id="rollNo" name="rollNo" required /><br />
+
+      <input type="submit" value="Submit" />
+    </form>
+
+    <h3>Submitted Data:</h3>
+    <table id="submittedData">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>ID</th>
+          <th>Roll No</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+    <script>
+      document
+        .getElementById("fileUpload")
+        .addEventListener("change", handleFileUpload);
+      document
+        .getElementById("autoForm")
+        .addEventListener("submit", handleManualSubmit);
+
+      let excelData = [];
+
+      function handleFileUpload(event) {
+        console.log("handleFileUpload triggered");
+
+        const file = event.target.files[0];
+        if (!file) {
+          alert("No file selected!");
+          return;
+        }
+
+        const reader = new FileReader();
+
+        reader.onload = function (e) {
+          console.log("reader.onload triggered");
+
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: "array" });
+
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+
+          excelData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+          document.getElementById("fileName").textContent = file.name;
+          document.getElementById(
+            "uploadStatus"
+          ).textContent = `File processed successfully: ${file.name} with ${
+            excelData.length - 1
+          } entries`;
+
+          console.log("Excel Data:", excelData);
+
+          if (excelData.length > 1) {
+            startAutoFill();
+          } else {
+            alert("The Excel file is empty or not properly formatted.");
+          }
+        };
+
+        reader.onerror = function (error) {
+          console.error("Error reading file:", error);
+        };
+
+        reader.readAsArrayBuffer(file);
+      }
+
+      function fillFormAndSubmit(data) {
+        document.getElementById("name").value = data[0];
+        document.getElementById("id").value = data[1];
+        document.getElementById("rollNo").value = data[2];
+
+        console.log("Form filled with:", data);
+
+        displayDataInTable(data);
+      }
+
+      function startAutoFill() {
+        let index = 1;
+        function submitNextEntry() {
+          if (index < excelData.length) {
+            fillFormAndSubmit(excelData[index]);
+            index++;
+            setTimeout(submitNextEntry, 1000);
+          } else {
+            console.log("All entries processed");
+            clearInputFields();
+          }
+        }
+
+        submitNextEntry();
+      }
+
+      function handleManualSubmit(e) {
+        e.preventDefault();
+
+        const name = document.getElementById("name").value;
+        const id = document.getElementById("id").value;
+        const rollNo = document.getElementById("rollNo").value;
+
+        if (name && id && rollNo) {
+          const data = [name, id, rollNo];
+          displayDataInTable(data);
+          clearInputFields();
+        } else {
+          alert("Please fill out all fields before submitting.");
+        }
+      }
+
+      function displayDataInTable(data) {
+        const tableBody = document
+          .getElementById("submittedData")
+          .querySelector("tbody");
+        const newRow = document.createElement("tr");
+        newRow.innerHTML = `<td>${data[0]}</td><td>${data[1]}</td><td>${data[2]}</td>`;
+        tableBody.appendChild(newRow);
+      }
+
+      function clearInputFields() {
+        document.getElementById("name").value = "";
+        document.getElementById("id").value = "";
+        document.getElementById("rollNo").value = "";
+      }
+    </script>
+  </body>
+</html>
